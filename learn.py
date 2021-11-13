@@ -5,7 +5,7 @@ import random
 from torch import nn, Tensor
 import math
 
-IMAGE_SIZE = 64
+IMAGE_SIZE = 32
 OUTPUT_IMAGE_SIZE = 1024
 DOT_SIZE=4
 
@@ -46,11 +46,11 @@ class NeuralNetwork(nn.Module):
         self.linear_relu_stack = nn.Sequential(
             # nn.Linear(IMAGE_SIZE * IMAGE_SIZE, 2),
             # nn.ReLU(),
-            nn.Linear(IMAGE_SIZE * IMAGE_SIZE, 4),
+            nn.Linear(IMAGE_SIZE * IMAGE_SIZE, IMAGE_SIZE * IMAGE_SIZE * 4),
             nn.ReLU(),
-            nn.Linear(4, 16),
+            nn.Linear(IMAGE_SIZE * IMAGE_SIZE * 4, IMAGE_SIZE * IMAGE_SIZE),
             nn.ReLU(),
-            nn.Linear(16, 2),
+            nn.Linear(IMAGE_SIZE * IMAGE_SIZE, 2),
             nn.ReLU()
         )
 
@@ -122,7 +122,7 @@ def test(data, model, loss_fn, train_data):
             # draw.line([pred,y],fill=rndclr())
             draw.ellipse([pred[0]-DOT_SIZE,pred[1]-DOT_SIZE,pred[0]+DOT_SIZE,pred[1]+DOT_SIZE], fill=color)
             draw.ellipse([y[0]-DOT_SIZE,y[1]-DOT_SIZE,y[0]+DOT_SIZE,y[1]+DOT_SIZE], fill=color)
-            
+            draw.line([pred[0], pred[1], y[0], y[1]], fill=color)
             # correct += (pred.argmax(1) == y).type(torch.float).sum().item()
     test_loss /= num_batches
 
@@ -132,6 +132,7 @@ def test(data, model, loss_fn, train_data):
         y = tuple(y.multiply(OUTPUT_IMAGE_SIZE).tolist())
         draw.ellipse([pred[0],pred[1],pred[0]+1,pred[1]+1], fill=color)
         draw.ellipse([y[0],y[1],y[0]+1,y[1]+1], fill=color)
+        draw.line([pred[0], pred[1], y[0], y[1]], fill=color)
 
     im_out.save("image.png")
     # correct /= size
@@ -142,7 +143,7 @@ epochs = 512
 train_dataloader = []
 test_dataloader = []
 
-for i in range(1024):
+for i in range(256):
     item = new_image_as_tensor(IMAGE_SIZE)
     train_dataloader.append((i,item))
 
