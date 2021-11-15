@@ -6,7 +6,7 @@ from torch import nn, Tensor
 import math
 
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cpu"# "cuda" if torch.cuda.is_available() else "cpu"
 print(device)
 
 
@@ -19,15 +19,13 @@ class NeuralNetwork(nn.Module):
 
         self.linear_relu_stack = nn.Sequential(
             nn.Linear(16*6, 8*6),
-            nn.ReLU(),
+            # nn.ReLU(),
             nn.Linear(8*6, 4*6),
-            nn.ReLU(),
+            # nn.ReLU(),
             nn.Linear(4*6, 6),
-            nn.ReLU(),
+            # nn.ReLU(),
             nn.Linear(6, 1),
-            nn.ReLU(),
-            # nn.Linear(32, 1),
-            # nn.Tanh(),
+            # nn.ReLU(),
         )
 
     def forward(self, x):
@@ -37,10 +35,11 @@ class NeuralNetwork(nn.Module):
 
 model = NeuralNetwork().to(device)
 print(model)
-lossfn = nn.MSELoss()
+lossfn = nn.HuberLoss()
+#lossfn = nn.MSELoss()
 #optimizer = torch.optim.SGD(model.parameters(), lr=1e-2)
-#optimizer = torch.optim.Adam(model.parameters(), lr=1e-1)
-optimizer = torch.optim.Adagrad(model.parameters(),lr=0.03)
+#optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+optimizer = torch.optim.Adagrad(model.parameters(),lr=0.01)
 
 
 def train(data, model, loss_fn, optimizer):
@@ -48,8 +47,6 @@ def train(data, model, loss_fn, optimizer):
     model.train()
     test_loss = 0
     for (X, y) in data:
-        # X, y = X.to(device), y.to(device)
-
         # Compute prediction error
         pred = model(X)
         loss = loss_fn(pred, y)
@@ -61,8 +58,6 @@ def train(data, model, loss_fn, optimizer):
 
         loss, current = loss.item(), 1 * len(X)
         test_loss += loss / len(data)
-    # print(f"loss: {test_loss:>7f}")
-
 
 def test(data, model, loss_fn):
     size = len(data)
@@ -72,7 +67,6 @@ def test(data, model, loss_fn):
     with torch.no_grad():
         for X, y in data:
             pred = model(X)
-
             test_loss += loss_fn(pred, y).item()
             y = y.item()
             pred = pred.item()
@@ -88,7 +82,7 @@ with open("data.txt") as f:
     for line in f:
         q = eval(line)
         a = torch.tensor(q[0]).to(device)
-        b = torch.tensor(q[1]).to(device)
+        b = torch.tensor([q[1]]).to(device)
         data.append((a,b))
 print(len(data))
 n = math.floor(len(data)*.9)
@@ -100,3 +94,4 @@ for t in range(512):
     train(train_data, model, lossfn, optimizer)
     test(test_data, model, lossfn)
 
+model.save("model.bin")

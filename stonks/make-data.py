@@ -2,7 +2,7 @@ import csv
 import math
 
 DAYS = 16
-SKIP = 19
+SKIP = 18
 
 def normalize_col(rows,n):
     min = 99999999999
