@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import torch
 import numpy as np
 import random
@@ -19,8 +20,8 @@ model.eval()
 def predict(sym):
     r = requests.get(f'https://query1.finance.yahoo.com/v7/finance/download/{sym}',
         params={
-            'period1': math.floor(time.time()-86400*15),
-            'period2': 1636934400,
+            'period1': math.floor(time.time()-86400*20),
+            'period2': math.floor(time.time()),
             'interval': '1d',
             'events': 'history',
     #        'includeAdjustedClose': 'false'
@@ -36,39 +37,33 @@ def predict(sym):
         row = list(map(lambda x: float(x), 
             (row[1],row[2],row[3],row[4],row[6])))
         rows.append(row)
-    rows = rows[-6:]
+    rows = rows[-11:]
     scale = normalize(rows)
-    # print("---- scale factors")
-    # pprint(scale)
 
-    data = rows[:5]
+    data = rows[:10]
     actual = rows[-1:]
-    # print("---- data")
-    # pprint(data)
-    # print("---- actual")
-    # pprint(actual)
 
     def scale_(val, scaling):
-        return (val * 0.5 + 0.5) * (scaling[1] - scaling[0]) + scaling[0]
+        result = val.copy()
+        for i in range(len(val)):
+            base = scaling[i][0]
+            delta = scaling[i][1] - base
+            result[i] = (val[i] * 0.5 + 0.5) * delta + base
+        return result
 
-    prevclose = scale_(data[4][3], scale[3])
-
-    actual = scale_(actual[0][3], scale[3])
-    
 
     data = torch.tensor(data).to(device)
-
     predict = model(data)
-    predict = scale_(predict.tolist()[3], scale[3])
 
-    result = ""
-    if (actual > prevclose and predict > prevclose) or (actual < prevclose and predict < prevclose):
-        result = "win"
-    else:
-        result = "loss"
-    print(f"{sym} prev={prevclose:>0.2f}" \
-        f" actual={actual:>0.2f}" \
-        f" predicted={predict:>0.2f} ({result})")
+    actual = scale_(actual[0], scale)
+    predict = scale_(predict.tolist(), scale)
+    actual_gain = actual[3] - actual[0]
+    predict_gain = predict[3] - predict[0]
+    win = "win" if actual_gain*predict_gain>0 else "loss"
+
+    print(f"{sym} " \
+        f" actual={actual[3]} {actual[0]} {actual_gain:>0.2f}" \
+        f" predicted={predict_gain:>0.2f} {win}")
 
 
 
@@ -81,5 +76,5 @@ syms = """tfc su iefa zip geo bkln cnq
  mpw bx nke fez crm hta wmt vea asan amd
  cost low schp hd ewt pgx stx csco""".replace('\n','').split(' ')
 
-for sym in syms:
+for sym in syms if len(argv)==1 else argv[1:]:
     predict(sym)

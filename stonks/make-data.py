@@ -3,8 +3,8 @@ import math
 import numpy as np
 import sys
 
-DAYS = 5
-SKIP = 6
+DAYS = 10
+SKIP = 11
 
 def normalize_col(rows,n):
     min = 99999999999
@@ -34,6 +34,8 @@ with open(f'{sys.argv[1]}.csv') as csvfile:
         row = list(map(lambda x: float(x), 
             (row[1],row[2],row[3],row[4],row[6])))
         rows.append(row)
+
+
 
 for i in range(len(rows)-SKIP):
     sample = []

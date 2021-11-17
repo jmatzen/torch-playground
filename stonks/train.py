@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from PIL import Image, ImageDraw
 import torch
 import numpy as np
@@ -5,6 +6,7 @@ import random
 from torch import nn, Tensor
 import math
 from stonks import *
+import stonks
 
 device = "cpu"# "cuda" if torch.cuda.is_available() else "cpu"
 print(device)
@@ -42,15 +44,23 @@ def test(data, model, loss_fn):
     model.eval()
     test_loss, correct = 0, 0
     with torch.no_grad():
-        for (X, y, _) in data:
+        for (X, y, meta) in data:
+            scaling = meta['scaling']
             pred = model(X)
             test_loss += loss_fn(pred, y).item()
-            y = y.tolist()[3]
-            pred = pred.tolist()[3]
-            x = X.tolist()[-1:][0][3]
-            if ((y<x and pred<x) or (y>x and pred>x)):
-                correct = correct + 1
-                # print(f"x={x} y={y} pred={pred}")
+
+            y = y.tolist()
+            y = stonks.scale(y, scaling)
+            y_delta = y[3] - y[0]
+
+            pred = pred.tolist()
+            pred = stonks.scale(pred, scaling)
+            pred_delta = pred[3] - pred[0]
+
+            # print(f"{y[3]} {y[0]} | {pred[3]} {pred[0]}")
+
+            if (y_delta * pred_delta > 0):
+                correct+=1
     test_loss /= num_batches
     correct = correct / num_batches
 

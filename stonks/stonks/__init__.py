@@ -8,8 +8,12 @@ class NeuralNetwork(nn.Module):
         self.flatten = nn.Flatten(0)
 
         self.linear_relu_stack = nn.Sequential(
-            nn.Linear(5*5, 3*5),
-            nn.Linear(3*5, 5),
+            # nn.Linear(10*5, 100*5),
+            # nn.Linear(10*5, 10*5),
+            # nn.Linear(10*5, 10*5),
+            nn.Linear(10*5, 8*5),
+            nn.Linear(8*5, 5),
+
             # nn.ReLU(),
             # nn.Linear(8*6, 4*6),
             # # nn.ReLU(),
@@ -47,3 +51,12 @@ def normalize(rows):
     scale.append(normalize_col(rows,3))
     scale.append(normalize_col(rows,4))
     return scale
+
+
+def scale(val:list, scaling:list)->list:
+    result = val.copy()
+    for i in range(len(val)):
+        base = scaling[i][0]
+        delta = scaling[i][1] - base
+        result[i] = (val[i] * 0.5 + 0.5) * delta + base
+    return result
