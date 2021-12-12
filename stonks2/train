@@ -1,0 +1,111 @@
+#!/usr/bin/env python
+
+import torch
+import torch.nn as nn
+import csv
+import math
+import random
+import torchvision
+from torch.utils.tensorboard import SummaryWriter
+from torchvision import datasets, transforms
+
+input_size = 1
+sequence_length=256
+num_layers=2
+hidden_size=1024
+num_classes=1
+learning_rate=0.001
+batch_size=256
+num_epochs=512
+prediction_length=7
+
+writer = SummaryWriter()
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(device)
+
+class RNN(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, num_classes):
+        super(RNN, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.rnn = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_size,num_classes)
+
+    def forward(self,x):
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device)
+        out, _ = self.rnn(x, h0)
+        out = out.reshape(out.shape[0], -1)
+        out = self.fc(out)
+        return out
+
+model = RNN(input_size, hidden_size,num_layers, num_classes).to(device)
+print(model)
+lossfn = nn.MSELoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+def train(i, data, model, lossfn, op):
+    model.train()
+    X = data[0]
+    y = data[1]
+    pred = model(X)
+    # print(pred.tolist()[:prediction_length])
+    loss = lossfn(pred[:prediction_length], y)
+    op.zero_grad()
+    loss.backward()
+    op.step()
+    print(f"i={i} loss={loss.item()}")
+    writer.add_scalar('Loss/train', loss.item(), i)
+
+def test(X, y, model, lossfn):
+    total_loss = 0
+    model.eval()
+    with torch.no_grad():
+        for i in range(len(X)):
+            pred = model(X[i])[:prediction_length]
+            #print(f"pred={pred.tolist()} actual={y[i].tolist()}")
+            total_loss += lossfn(pred, y[i]).item()
+    total_loss /= len(X)
+    print(f"error={total_loss}")
+
+data=[]
+with open(f'spy.csv') as csvf:
+    reader = csv.reader(csvf, delimiter=',')
+    next(reader,None) # skip header
+    for row in reader:
+        row = [row[5]]
+        row = list(map(lambda x: float(x), row))
+        data.append(row)
+
+training_rows = math.floor(len(data)*.8)
+test_rows = len(data)-training_rows-prediction_length
+print(f"training={training_rows} test={test_rows} total={len(data)}")
+
+
+X = []
+y = []
+for i in range(training_rows):
+    sequence = torch.tensor(data[i:i+sequence_length+prediction_length]).to(device)
+    min = sequence.min()
+    sequence -= min
+    max = sequence.max()
+    sequence /= max
+    a,b = sequence.split(sequence_length)
+    a = a.unsqueeze(-1)
+    X.append(a)
+    y.append(b)
+
+# test_X=[]
+# test_y=[]
+# for i in range(training_rows,training_rows+test_rows):
+#     a = torch.tensor(data[i:i+sequence_length]).to(device).unsqueeze(-1)
+#     b = torch.tensor(data[i+sequence_length:i+sequence_length+prediction_length]).to(device)
+#     test_X.append(a)
+#     test_y.append(b)
+step = 0
+while True:
+    i = random.randrange(len(X))
+    train(step, (X[i],y[i]), model, lossfn, optimizer)
+    step+=1
+    # test(test_X, test_y, model, lossfn)
+    
