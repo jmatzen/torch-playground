@@ -12,7 +12,7 @@ from torchvision import datasets, transforms
 input_size = 1
 sequence_length=256
 num_layers=2
-hidden_size=1024
+hidden_size=2048
 num_classes=1
 learning_rate=0.001
 batch_size=256
@@ -54,19 +54,20 @@ def train(i, data, model, lossfn, op):
     op.zero_grad()
     loss.backward()
     op.step()
-    print(f"i={i} loss={loss.item()}")
-    writer.add_scalar('Loss/train', loss.item(), i)
+    if (i % 100 == 0):
+        print(f"i={i} loss={loss.item()}")
+        writer.add_scalar('Loss/train', loss.item(), i)
 
-def test(X, y, model, lossfn):
+def test(i, data, model, lossfn):
     total_loss = 0
     model.eval()
     with torch.no_grad():
-        for i in range(len(X)):
-            pred = model(X[i])[:prediction_length]
-            #print(f"pred={pred.tolist()} actual={y[i].tolist()}")
-            total_loss += lossfn(pred, y[i]).item()
-    total_loss /= len(X)
-    print(f"error={total_loss}")
+        X = data[0]
+        y = data[1]
+        pred = model(X)
+        loss = lossfn(pred[:prediction_length], y)
+        if (i%100==0):
+            writer.add_scalar('Loss/test', loss.item(), i)
 
 data=[]
 with open(f'spy.csv') as csvf:
@@ -95,17 +96,30 @@ for i in range(training_rows):
     X.append(a)
     y.append(b)
 
-# test_X=[]
-# test_y=[]
-# for i in range(training_rows,training_rows+test_rows):
-#     a = torch.tensor(data[i:i+sequence_length]).to(device).unsqueeze(-1)
-#     b = torch.tensor(data[i+sequence_length:i+sequence_length+prediction_length]).to(device)
-#     test_X.append(a)
-#     test_y.append(b)
+test_X=[]
+test_y=[]
+for i in range(training_rows,training_rows+test_rows):
+    sequence = torch.tensor(data[i:i+sequence_length+prediction_length]).to(device)
+    min = sequence.min()
+    sequence -= min
+    max = sequence.max()
+    sequence /= max
+    print(sequence.size())
+    a,b = sequence.split(sequence_length)
+    print(a.size(),b.size())
+    a = a.unsqueeze(-1)
+    test_X.append(a)
+    test_y.append(b)
+
 step = 0
 while True:
     i = random.randrange(len(X))
     train(step, (X[i],y[i]), model, lossfn, optimizer)
+    i = random.randrange(len(test_X))
+    test(step, (test_X[i], test_y[i]), model, lossfn, optimizer)
     step+=1
+    if (step % 10000 == 0):
+        print("saving model!")
+        torch.save(model, "model.bin")
     # test(test_X, test_y, model, lossfn)
     
