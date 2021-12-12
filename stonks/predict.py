@@ -77,4 +77,7 @@ syms = """tfc su iefa zip geo bkln cnq
  cost low schp hd ewt pgx stx csco""".replace('\n','').split(' ')
 
 for sym in syms if len(argv)==1 else argv[1:]:
-    predict(sym)
+    try:
+        predict(sym)
+    except:
+        pass

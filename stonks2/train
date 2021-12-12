@@ -54,20 +54,26 @@ def train(i, data, model, lossfn, op):
     op.zero_grad()
     loss.backward()
     op.step()
-    if (i % 100 == 0):
-        print(f"i={i} loss={loss.item()}")
-        writer.add_scalar('Loss/train', loss.item(), i)
+    print(f"i={i} loss={loss.item()}")
+    writer.add_scalar('Loss/train', loss.item(), i)
 
+win = 0.0
 def test(i, data, model, lossfn):
+    global win
     total_loss = 0
     model.eval()
     with torch.no_grad():
         X = data[0]
         y = data[1]
-        pred = model(X)
-        loss = lossfn(pred[:prediction_length], y)
-        if (i%100==0):
-            writer.add_scalar('Loss/test', loss.item(), i)
+        pred = model(X)[:prediction_length]
+        loss = lossfn(pred, y)
+        X = X.flatten()[-1]
+        if ((pred[-1] > X and y[-1] > X) 
+            or (pred[-1] < X and y[-1] < X)):
+                win+=1
+        accuracy = win/(i+1)
+        writer.add_scalar('Loss/test', loss.item(), i)
+        writer.add_scalar('Accuracy/test', accuracy, i)
 
 data=[]
 with open(f'spy.csv') as csvf:
@@ -79,7 +85,7 @@ with open(f'spy.csv') as csvf:
         data.append(row)
 
 training_rows = math.floor(len(data)*.8)
-test_rows = len(data)-training_rows-prediction_length
+test_rows = len(data)-training_rows-sequence_length-prediction_length
 print(f"training={training_rows} test={test_rows} total={len(data)}")
 
 
@@ -104,9 +110,7 @@ for i in range(training_rows,training_rows+test_rows):
     sequence -= min
     max = sequence.max()
     sequence /= max
-    print(sequence.size())
     a,b = sequence.split(sequence_length)
-    print(a.size(),b.size())
     a = a.unsqueeze(-1)
     test_X.append(a)
     test_y.append(b)
@@ -116,7 +120,7 @@ while True:
     i = random.randrange(len(X))
     train(step, (X[i],y[i]), model, lossfn, optimizer)
     i = random.randrange(len(test_X))
-    test(step, (test_X[i], test_y[i]), model, lossfn, optimizer)
+    test(step, (test_X[i], test_y[i]), model, lossfn)
     step+=1
     if (step % 10000 == 0):
         print("saving model!")
